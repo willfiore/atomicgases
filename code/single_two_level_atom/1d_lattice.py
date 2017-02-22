@@ -38,7 +38,7 @@ def get_jump_atom():
         
 generate_rates()
 
-duration = 10
+duration = 500
 
 last_jump_time = 0
 times = []
