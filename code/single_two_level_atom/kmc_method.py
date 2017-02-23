@@ -9,6 +9,7 @@ import math
 import random
 import matplotlib.pyplot as plt
 import bisect
+import numpy as np
 
 k = 1
 
@@ -42,7 +43,11 @@ def get_average(N, duration, num_bins):
             
     average_state = [a/N for a in average_state]
     
-    print(average_state)
-    plt.plot(time_x, average_state)
+    # plot actual graph
+    t = np.linspace(0, duration, 1000)
+    p = [(1/2)*(1-math.exp(-2*k*x)) for x in t]
+    
+    plt.plot(t, p, 'k')
+    plt.plot(time_x, average_state, 'r')
 
-get_average(100000, 5, 1000)
+get_average(10000, 5, 1000)

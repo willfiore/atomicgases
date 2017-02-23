@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Feb 22 14:05:32 2017
-
-@author: ppywf
-"""
-
 import math
 import random
 import bisect
@@ -60,6 +53,6 @@ p = []
 
 for i in range(len(times)):
     t.extend([times[i] for n in range(total_state[i].count(1))])
-    p.extend([n for n, x in enumerate(total_state[i]) if x == 1])
+    p.extend([index for (index, value) in enumerate(total_state[i]) if value == 1])
     
 plt.scatter(t, p, color='black',marker=',',lw=0, s=1)
