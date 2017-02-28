@@ -5,7 +5,7 @@ import numpy as np
 import copy as copy
 import matplotlib.pyplot as plt
 
-R = 1 # interatomic spacing
+R = 5 # interatomic spacing
 num_atoms = 100
 
 state = [0 for x in range(num_atoms)]
