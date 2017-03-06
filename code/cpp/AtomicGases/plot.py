@@ -9,11 +9,12 @@ Created on Sun Mar  5 17:19:35 2017
 import math
 import csv
 import matplotlib.pyplot as plt
+import numpy as np
 import copy
 
 data_og = []
 
-with open('data.csv') as csvfile:
+with open('data_500_40_1000_10.csv') as csvfile:
     reader = csv.reader(csvfile, delimiter=',', quotechar='|')
     for row in reader:
         data_og.append(row)
@@ -22,29 +23,27 @@ data = copy.copy(data_og)
 
 (num_repeats, R, num_atoms, duration) = map(int, data.pop(0))
 
-repeated_densities = []
+log_t_interp = np.linspace(math.log(0.0001), math.log(duration), 50)
+log_d_interp = []
 
-times = []
-atoms = []
-
-
-
-for repeat in range(num_repeats):
-    times.append(data.pop(0))
-    for atom in range(num_atoms):
-        atoms.append(data.pop(0))
+for r in range(num_repeats):
+    times = []
+    atoms = []
+    times.extend(map(float, data.pop(0)))
+    for a in range(num_atoms):
+        atoms.append(list(map(int, data.pop(0))))
         
-    # Calculate densities
-    final_density = []
-    for t in range(len(times)):
-        density = 0
-        for a in atoms:
-            density += int(a[t])
-            density /= len(atoms)
-            
-            final_density.append(density)
-            
-    repeated_densities.append(final_density)
+    density = [sum(x) for x in list(zip(*atoms))]
+
+    log_times = [math.log(t) for t in times]
+    log_density = [math.log(d) for d in density]
+
+    log_d_interp.append(list(np.interp(log_t_interp, log_times, log_density)))
+    
+zipped_d_interp = list(zip(*log_d_interp))
+average_d = [sum(d) for d in zipped_d_interp]
+
+plt.plot(log_t_interp, average_d)
         
 # Plot excitation graph
 #for a in range(len(atoms)):

@@ -1,17 +1,19 @@
 #include <iostream>  // input / output from console
-#include <array>     // fixed sized containers to store current states and rates
 #include <vector>    // variable sized containers to store flip times and states
+#include <algorithm> // std::min, max
 #include <cmath>     // math library
 #include <numeric>   // for std::accumulate (summing over containers)
 #include <random>    // random number generation
 #include <fstream>   // file stream for saving to files
+#include <sstream>   // string stream for creating the file name
 
+////////////////////
 // Global variables 
-const int num_atoms = 500;
-const float duration = 100;
-
+////////////////////
 // These are provided by user input when the application is run
+int num_atoms = 500;
 int R = 20;
+float duration = 100;
 int num_repeats = 1;
 
 // float randomFloat(float a, float b)
@@ -28,7 +30,7 @@ float randomFloat(float a, float b)
 
 // void generate_rates(state, rates)
 // Given the current state vector of the system, update the corresponding rates
-void generate_rates(std::array<bool, num_atoms>& state, std::array<float, num_atoms>& rates)
+void generate_rates(std::vector<bool>& state, std::vector<float>& rates)
 {
     // For each atom
     for (int k = 0; k < num_atoms; ++k) {
@@ -56,7 +58,7 @@ void generate_rates(std::array<bool, num_atoms>& state, std::array<float, num_at
 
 // float get_jump_time(rates)
 // Get the next atomic jump time (from 0)
-float get_jump_time(std::array<float, num_atoms>& rates)
+float get_jump_time(std::vector<float>& rates)
 {
     // note: the std::accumulate method sums over the iterators given, starting from the value given
     // as a parameter ( std::accumulate(starting_iterator, ending_iterator, starting_value)
@@ -65,13 +67,13 @@ float get_jump_time(std::array<float, num_atoms>& rates)
 
 // int get_jump_atom(rates)
 // Get which atom performs the next jump
-int get_jump_atom(std::array<float, num_atoms>& rates)
+int get_jump_atom(std::vector<float>& rates)
 {
     // First, sum over all the rates
     float sum_rates = std::accumulate(rates.begin(), rates.end(), 0.f);
 
     // Create a fixed-sized array of cumulatively summed rates
-    std::array<float, num_atoms> cum_rates;
+    std::vector<float> cum_rates(num_atoms, 0);
 
     // For each atom
     for (size_t i = 0; i < num_atoms; ++i) {
@@ -112,18 +114,25 @@ int get_jump_atom(std::array<float, num_atoms>& rates)
 int main()
 {
     // Get some user input
-    std::cout << "R > ";
-    std::cin >> R;
-    std::cout << std::endl;
+    std::cout << "Number of atoms \t> ";
+    std::cin >> num_atoms;
 
-    std::cout << "Num repeats > ";
+    std::cout << "Interaction range, R \t> ";
+    std::cin >> R;
+
+    std::cout << "Duration (seconds) \t> ";
+    std::cin >> duration;
+
+    std::cout << "Num repeats \t> ";
     std::cin >> num_repeats;
-    std::cout << std::endl;
 
     // We want to output our data as a comma-seperated values (CSV) file,
     // to be read into python.
     std::ofstream file;    // Create a new file stream
-    file.open("data.csv"); // Open the file
+
+    std::stringstream filename;
+    filename << "data_" << num_atoms << "_" << R << "_" << duration << "_" << num_repeats << ".csv";
+    file.open(filename.str()); // Open the file
 
     // The operator << is used to push data into the file.
 
@@ -136,37 +145,30 @@ int main()
         // Print repeat number to console
         std::cout << "Repeat number " << r << std::endl;
 
-        // Create a new array to store the current state.
-        // std::array takes two template parameters as follows:
-        // std::array<value_type, number_of_values>
+        // Create a new vector to store the current state.
+        // std::vector takes one template parameter (between <>) indicating
+        // which type of value it stores.
 
-        // 'bool' represents a boolean value, either true or false.
-        // if 'bool' is cast to a numeric value like 'int' or 'float', then
-        // true -> 1, false -> 0
-        std::array<bool, num_atoms> current_state;
+        // Here I have used the fill-constructor which has the following syntax:
+        // std::vector<type> name (number_of_elements, default_value)
+        std::vector<bool> current_state(num_atoms, false);
 
+        // bool can either be true or false.
         // Here, true represents an atom in the Rydberg state,
         // false represents the ground state.
-
-        // Initialize all atoms in the ground state to begin
-        // (maybe there's a better way of doing this, I'm not sure. Who cares)
-        // The syntax here means 'for every state in current_state'
-        for (auto& state : current_state) {
-            state = false;
-        }
+        // Converting bool to a numeric value (eg int, float) returns 0 or 1
 
         // Create a new array to store the transition rates of each atom, again
         // num_atoms in length
-        std::array<float, num_atoms> rates;
+        std::vector<float> rates(num_atoms, 0);
 
-        // Generate the rates according to the states
         generate_rates(current_state, rates);
 
         // Create an empty vector of floats to store the jump times.
         std::vector<float> times;
         // We want to store the entire state of the system at each jump time, so
         // create another empty vector to store state arrays
-        std::vector<std::array<bool, num_atoms> > states;
+        std::vector<std::vector<bool> > states;
 
         // Start the time on 0
         // 'float' is a floating-point number, i.e one with decimal places
