@@ -120,7 +120,7 @@ int main()
     std::cout << "Interaction range, R \t> ";
     std::cin >> R;
 
-    std::cout << "Duration (seconds) \t> ";
+    std::cout << "Sim Duration (seconds) \t> ";
     std::cin >> duration;
 
     std::cout << "Num repeats \t> ";
