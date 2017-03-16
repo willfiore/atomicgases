@@ -3,82 +3,66 @@
 #include <algorithm> // std::min, max
 #include <cmath>     // math library
 #include <numeric>   // for std::accumulate (summing over containers)
-#include <random>    // random number generation
 #include <fstream>   // file stream for saving to files
 #include <sstream>   // string stream for creating the file name
+#include <chrono>
 
-////////////////////
-// Global variables 
-////////////////////
-// These are provided by user input when the application is run
-int num_atoms = 500;
-int R = 20;
-float duration = 100;
-int num_repeats = 1;
-
-// float randomFloat(float a, float b)
-// Returns a random floating-point in the interval [a, b]
-float randomFloat(float a, float b)
-{
-    // create and seed a new random generator using the OS's random device
-    std::mt19937 gen = std::mt19937(std::random_device()());
-    // create a uniform real number distribution in the interval [a, b]
-    std::uniform_real_distribution<float> dis(a, b);
-    // use the random generator to produce a number from the distribution, and return it
-    return dis(gen);
-}
+#include "Random.hpp"
+#include "State.hpp"
+#include "Plot.hpp"
 
 // void generate_rates(state, rates)
 // Given the current state vector of the system, update the corresponding rates
-void generate_rates(std::vector<bool>& state, std::vector<float>& rates)
+void generate_rates(std::vector<bool>& state, std::vector<double>& rates)
 {
+    const double pow_r_12 = pow(State::R, 12);
     // For each atom
-    for (int k = 0; k < num_atoms; ++k) {
+    for (int k = 0; k < State::num_atoms; ++k) {
 
         // start interaction sum on 0
-        float interaction_sum = 0;
+        double interaction_sum = 0;
 
         // For each atom
-        for (int j = 0; j < num_atoms; ++j) {
+        for (int j = 0; j < State::num_atoms; ++j) {
             // Ignore the same atom (continue goes to beginning of loop again)
             if (j == k) continue;
 
             // Distance between two atoms is the shortest between real distance and wrapped distance
             // (to create periodic boundaries)
-            int dist = std::min(std::abs(j - k), num_atoms - std::abs(j-k));
+            int dist = min(std::abs(j - k), State::num_atoms - std::abs(j-k));
 
             // add to the interaction sum as given in the notes
-            interaction_sum += float(state[j]) / float(pow(dist, 6));
+            interaction_sum += double(state[j]) / double(pow(dist, 6));
         }
 
         // set the rate of this atom as given in the notes
-        rates[k] = 1.f / (1.f + (pow(R, 12))*pow(interaction_sum, 2));
+        rates[k] = 1.f / (1.f + (pow_r_12)*pow(interaction_sum, 2));
     }
 }
 
-// float get_jump_time(rates)
+// double get_jump_time(rates)
 // Get the next atomic jump time (from 0)
-float get_jump_time(std::vector<float>& rates)
+double get_jump_time(std::vector<double>& rates)
 {
     // note: the std::accumulate method sums over the iterators given, starting from the value given
     // as a parameter ( std::accumulate(starting_iterator, ending_iterator, starting_value)
-    return -log(randomFloat(0, 1)) / std::accumulate(rates.begin(), rates.end(), 0.f);
+    return -log(Random::randomDouble(0, 1)) / std::accumulate(rates.begin(), rates.end(), 0.f);
 }
 
 // int get_jump_atom(rates)
 // Get which atom performs the next jump
-int get_jump_atom(std::vector<float>& rates)
+int get_jump_atom(std::vector<double>& rates)
 {
     // First, sum over all the rates
-    float sum_rates = std::accumulate(rates.begin(), rates.end(), 0.f);
+    double sum_rates = std::accumulate(rates.begin(), rates.end(), 0.f);
 
     // Create a fixed-sized array of cumulatively summed rates
-    std::vector<float> cum_rates(num_atoms, 0);
+    std::vector<double> cum_rates(State::num_atoms, 0);
 
     // For each atom
-    for (size_t i = 0; i < num_atoms; ++i) {
+    for (size_t i = 0; i < State::num_atoms; ++i) {
         // Start the sum on 0
-        float sum = 0;
+        double sum = 0;
 
         // For each atom up to and including this atom
         for (size_t j = 0; j <= i; ++j) {
@@ -91,7 +75,7 @@ int get_jump_atom(std::vector<float>& rates)
 
     // The cum_rates array now contains a series of values from 0 to 1
     // Generate a random number from 0 to 1
-    float r = randomFloat(0, 1);
+    double r = Random::randomDouble(0, 1);
 
     // Emulating bisect.bisect_left from Python:
     // Starting atom is the left-most atom in the array
@@ -115,33 +99,19 @@ int main()
 {
     // Get some user input
     std::cout << "Number of atoms \t> ";
-    std::cin >> num_atoms;
+    std::cin >> State::num_atoms;
 
     std::cout << "Interaction range, R \t> ";
-    std::cin >> R;
+    std::cin >> State::R;
 
     std::cout << "Sim Duration (seconds) \t> ";
-    std::cin >> duration;
+    std::cin >> State::duration;
 
     std::cout << "Num repeats \t> ";
-    std::cin >> num_repeats;
-
-    // We want to output our data as a comma-seperated values (CSV) file,
-    // to be read into python.
-    std::ofstream file;    // Create a new file stream
-
-    std::stringstream filename;
-    filename << "data_" << num_atoms << "_" << R << "_" << duration << "_" << num_repeats << ".csv";
-    file.open(filename.str()); // Open the file
-
-    // The operator << is used to push data into the file.
-
-    // On the first line, push important information about the data-set
-    // Note: the special character '\n' is a carriage return (new line)
-    file << num_repeats << "," << R << "," << num_atoms << "," << duration << "\n";
+    std::cin >> State::num_repeats;
 
     // Repeat num_repeats amount of times
-    for (size_t r = 0; r < num_repeats; ++r) {
+    for (size_t r = 0; r < State::num_repeats; ++r) {
         // Print repeat number to console
         std::cout << "Repeat number " << r << std::endl;
 
@@ -151,31 +121,32 @@ int main()
 
         // Here I have used the fill-constructor which has the following syntax:
         // std::vector<type> name (number_of_elements, default_value)
-        std::vector<bool> current_state(num_atoms, false);
+        std::vector<bool> current_state(State::num_atoms, false);
 
         // bool can either be true or false.
         // Here, true represents an atom in the Rydberg state,
         // false represents the ground state.
-        // Converting bool to a numeric value (eg int, float) returns 0 or 1
+        // Converting bool to a numeric value (eg int, double) returns 0 or 1
 
         // Create a new array to store the transition rates of each atom, again
         // num_atoms in length
-        std::vector<float> rates(num_atoms, 0);
+        std::vector<double> rates(State::num_atoms, 0);
 
         generate_rates(current_state, rates);
 
-        // Create an empty vector of floats to store the jump times.
-        std::vector<float> times;
+        // Create an empty vector of doubles to store the jump times.
+        Times times;
         // We want to store the entire state of the system at each jump time, so
         // create another empty vector to store state arrays
-        std::vector<std::vector<bool> > states;
+        States states;
 
         // Start the time on 0
-        // 'float' is a floating-point number, i.e one with decimal places
+        // 'double' is a double precision floating-point number, (i.e one with decimal places)
         // (as opposed to an integer)
-        float current_time = 0;
+        double current_time = 0;
 
-        while (current_time < duration) {
+        while (current_time < State::duration) {
+
             current_time += get_jump_time(rates);
             times.push_back(current_time);
 
@@ -188,59 +159,23 @@ int main()
 
             // Regenerate the rates
             generate_rates(current_state, rates);
-            
-            // Print percentage done
-            std::cout << (100 * (current_time / duration)) << "%" << std::endl;
 
             // ... repeat
         }
-
-        // Here, we are finished generating the data
-        // Now, deal with saving it to the file:
-
-        // For every time in times, push that value to the file, followed by a comma
-        // We don't want the last value to have a comma after it so we only do this for
-        // all times except the last one
-        for (size_t t = 0; t < times.size() - 1; ++t) {
-            file << times[t] << ",";
-        }
-
-        // Push the last time to the file, without the comma this time
-        file << times[times.size() - 1];
-        file << "\n"; // new line
-
-        // For every atom
-        for (size_t a = 0; a < num_atoms; ++a) {
-            // For every time
-            for (size_t t = 0; t < times.size() - 1; ++t) {
-                // Push the state of atom a at time t to the file
-                file << states[t][a] << ",";
-            }
-
-            // Again, push the last state without a comma
-            file << states[times.size() - 1][a];
-            file << "\n"; // new line
-        }
-
-        // Recall, all of this is inside a loop for the number of repeats
-        // So, go back and do it all again. In the end, our file will look like:
-
-        // - preliminary data
-        // repeat 1: jump times
-        // repeat 1: atom 0 states at each time
-        // repeat 1: atom 1 states at each time
-        // ...
-        // repeat 1: atom N states at each time
-        // repeat 2: jump times
-        // repeat 2: atom 0 states at each time
-        // ...
-        // ...
-        // repeat N: jump times
-        // repeat N: atom jump times...
+        State::duration = current_time;
+        std::cout << "Simulated " << current_time << " seconds.";
+        State::repeated_times.push_back(times);
+        State::repeated_states.push_back(states);
     }
-    
-    // Finally finished everything. Close the file stream (this saves the file, too)
-    file.close();
+
+    // Plot
+    Plot::init();
+    //Plot::plotStateGraph();
+    Plot::plotSpatialCorrelations();
+    //Plot::plotDensityGraph();
+
+    // Pause so it doesn't exit immediately and we have time to see the graphs.
+    system("pause");
 
     // The main function must return an integer to tell the operating system
     // whether the program ran successfully. In C++, a return value of 0

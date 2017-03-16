@@ -11,10 +11,11 @@ import csv
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
+import bisect
 
 data_og = []
 
-with open('data_500_20_100000_3.csv') as csvfile:
+with open('data_100_8_1000000_1.csv') as csvfile:
     reader = csv.reader(csvfile, delimiter=',', quotechar='|')
     for row in reader:
         data_og.append(row)
@@ -23,33 +24,40 @@ data = copy.copy(data_og)
 
 (num_repeats, R, num_atoms, duration) = map(int, data.pop(0))
 
-def plot_density():
-    log_t_interp = np.linspace(math.log(0.0001), math.log(duration), 50)
-    log_d_interp = []
-    
-    for r in range(num_repeats):
-        times = []
-        atoms = []
-        times.extend(map(float, data.pop(0)))
-        for a in range(num_atoms):
-            atoms.append(list(map(int, data.pop(0))))
-            
-        density = [sum(x)/num_atoms for x in list(zip(*atoms))]
-    
-        log_times = [math.log(t) for t in times]
-        log_density = [math.log(d) for d in density]
-    
-        log_d_interp.append(list(np.interp(log_t_interp, log_times, log_density)))
-        
-    zipped_d_interp = list(zip(*log_d_interp))
-    average_d = [sum(d) for d in zipped_d_interp]
-    
-    plt.plot(log_t_interp, average_d)
-    
-times = []
+times = list(np.linspace(0.0001, duration, 1000))
 atoms = []
+
+for r in range(num_repeats):
+    jump_times = []
+    interp_atoms = []
+
+    jump_times.extend(map(float, data.pop(0)))
+
+    for a in range(num_atoms):
+        extracted_atom = list(map(int, data.pop(0)))
+
+        a_interp = [extracted_atom[bisect.bisect_left(jump_times, t)] for t in times]
+        
+        interp_atoms.append(a_interp)
+    
+    atoms.append(interp_atoms)
+    
+t_interp = np.linspace(0, duration, 1000)
+a_interp
+
+def plot_density():
+    
+    densities = [sum(x)/num_atoms for x in list(zip(*atoms[r])) for r in range(num_repeats)]
+                 
+    log_times = [math.log(t) for t in times]
+    log_densities = [math.log(d) for d in densities]
+    plt.plot(log_times, log_densities)
+    
     # Takes first repeat only
 def plot_excitation_graph():
+    times = []
+    atoms = []
+
     times.extend(map(float, data.pop(0)))
     for a in range(num_atoms):
         atoms.append(list(map(int, data.pop(0))))
@@ -59,29 +67,37 @@ def plot_excitation_graph():
 
         plt.scatter(times_to_plot, atom_number, color='black', marker=',', lw=0, s=1)
         
+def plot_spatial_correlations():
+    distances = list(range(1, num_atoms))
+    
+    g = []
+    for x in distances:
+        correlations = []
+        n1s = []
+        n1_xs = []
+
+        for r in range(num_repeats):
+            time = 50
+            n1 = atoms[r][0][time]
+            n1_x = atoms[r][x][time]
+
+            print(n1_x)
+
+            correlations.append(n1 * n1_x)
+            n1s.append(n1)
+            n1_xs.append(n1_x)
+        
+        average_correlation = sum(correlations) / num_repeats
+        average_n1 = sum(n1s) / num_repeats
+        average_n1_x = sum(n1_xs) / num_repeats
+
+        g.append(average_correlation - (average_n1 * average_n1_x) )
+        
+    print(g)
+    plt.plot(distances, g)
+#         
+#    plt.plot(x, g)
+        
 plot_density()
 #plot_excitation_graph()
-        
-# Plot excitation graph
-#for a in range(len(atoms)):
-#    times_to_plot = [times[index] for (index, value) in enumerate(atoms[a]) if value == '1']
-#    atom_number = [a for x in times_to_plot]
-#    
-#    plt.scatter(times_to_plot, atom_number, color='black',marker=',',lw=0, s=1)
-    
-#plt.figure()
-    
-# Plot density graph
-#final_density = []
-#for t in range(len(times)):
-#    density = 0
-#    for a in atoms:
-#        density += int(a[t])
-#
-#    density /= len(atoms)
-#    final_density.append(density)
-#    
-#times = [math.log(float(t)) for t in times]
-#final_density = [math.log(d) for d in final_density]
-#    
-#plt.plot(times, final_density)
+#plot_spatial_correlations()
