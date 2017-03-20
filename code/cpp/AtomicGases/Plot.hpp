@@ -6,10 +6,13 @@
 class Plot
 {
 public:
-    static void init();
+	static void init();
+	static void newPlotWindow();
+
     static void plotStateGraph();
 
     static void plotDensityGraph();
+	static void plotFluctuationGraph();
 
     static void plotSpatialCorrelations(); // do last time
     static void plotSpatialCorrelations(double time);

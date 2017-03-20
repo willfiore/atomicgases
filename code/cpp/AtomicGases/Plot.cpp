@@ -12,6 +12,13 @@ Gnuplot Plot::gp("\"C:\\Program files\\gnuplot\\bin\\gnuplot.exe\"");
 void Plot::init()
 {
     gp << "set samples 10000\n";
+	gp << "set term windows 0\n";
+}
+
+void Plot::newPlotWindow()
+{
+	static int x = 0;
+	gp << "set term windows " << ++x << "\n";
 }
 
 void Plot::plotStateGraph()
@@ -43,37 +50,108 @@ void Plot::plotStateGraph()
 
 void Plot::plotDensityGraph()
 {
-    // Create evenly-spaced log times.
-    std::vector<double> log_times;
-    std::vector<double> log_density;
+	// Create evenly-spaced log times.
+	std::vector<double> log_times;
+	std::vector<double> log_density;
+
+	int num_spaces = 2000;
+	for (int i = 0; i < num_spaces; ++i) {
+		log_times.push_back(double(i) / double(num_spaces) * log(State::duration));
+	}
+
+	// For every time in log_times
+	for (auto& log_time : log_times) {
+
+		double total_density = 0;
+
+		// Undo the log time to find actual time
+		double time = exp(log_time);
+
+		// For every repeat
+		for (size_t r = 0; r < State::num_repeats; ++r) {
+
+			Times& times = State::repeated_times[r];
+			States& states = State::repeated_states[r];
+
+			// We want to find how many excited atoms are at this time..
+			unsigned int total_excited = 0;
+
+			// For every atom
+			for (size_t a = 0; a < State::num_atoms; ++a) {
+
+				// Get atom state at time 'time' (bisect.bisect_left equivalent)
+				auto t_index = std::distance(times.begin(), std::lower_bound(times.begin(), times.end(), time));
+
+				bool state;
+				if (t_index >= times.size()) {
+					state = states[states.size() - 1][a];
+				}
+				else {
+					state = states[t_index][a];
+				}
+
+				// If it's excited, add to total excited state
+				total_excited += state;
+			}
+
+			// Density is total excited divided by number of atoms
+			double density = total_excited / double(State::num_atoms);
+
+			// We want to average the density over many repeats so add this to a vector
+			total_density += density;
+		}
+
+		double average_density = total_density / State::num_repeats;
+
+		// We have found the average density corresponding to the value in log_times
+		// Append it to log_density
+		log_density.push_back(log(average_density));
+	}
+
+	gp << "plot '-' with lines\n";
+	gp.send1d(boost::make_tuple(log_times, log_density));
+	gp.flush();
+}
+
+void Plot::plotFluctuationGraph()
+{
+    // Create evenly-spaced times.
+	std::vector<double> interp_times;
+	std::vector<double> fluctuations;
 
     int num_spaces = 2000;
     for (int i = 0; i < num_spaces; ++i) {
-        log_times.push_back(double(i) / double(num_spaces) * log(State::duration));
+        interp_times.push_back((double(i) / double(num_spaces)) * State::duration);
     }
 
-    // For every time in log_times
-    for (auto& log_time : log_times) {
+    // For every time in interp_times
+    for (auto& time : interp_times) {
 
         double total_density = 0;
+		double total_sq_density = 0;
 
         // For every repeat
         for (size_t r = 0; r < State::num_repeats; ++r) {
 
-            Times& times = State::repeated_times[r];
-            States& states = State::repeated_states[r];
+            Times& jump_times = State::repeated_times[r];
+            States& jump_states = State::repeated_states[r];
 
             // We want to find how many excited atoms are at this time..
             unsigned int total_excited = 0;
 
             // For every atom
             for (size_t a = 0; a < State::num_atoms; ++a) {
-                // Undo the log time to find actual time
-                double time = exp(log_time);
 
                 // Get atom state at time 'time' (bisect.bisect_left equivalent)
-                auto t_index = std::distance(times.begin(), std::lower_bound(times.begin(), times.end(), time));
-                bool state = states[t_index][a];
+                auto t_index = std::distance(jump_times.begin(), std::lower_bound(jump_times.begin(), jump_times.end(), time));
+
+				bool state;
+				if (t_index >= jump_times.size()) {
+					state = jump_states[jump_states.size() - 1][a];
+				}
+				else {
+					state = jump_states[t_index][a];
+				}
 
                 // If it's excited, add to total excited state
                 total_excited += state;
@@ -81,19 +159,24 @@ void Plot::plotDensityGraph()
 
             // Density is total excited divided by number of atoms
             double density = total_excited / double(State::num_atoms);
+			double sq_density = pow(density, 2);
 
             // We want to average the density over many repeats so add this to a vector
             total_density += density;
+			total_sq_density += sq_density;
         }
 
         double average_density = total_density / State::num_repeats;
+		double average_sq_density = total_sq_density / State::num_repeats;
+
         // We have found the average density corresponding to the value in log_times
         // Append it to log_density
-        log_density.push_back(log(average_density));
+		double fluctuation = sqrt(average_sq_density - pow(average_density, 2));
+		fluctuations.push_back(fluctuation);
     }
 
     gp << "plot '-' with lines\n";
-    gp.send1d(boost::make_tuple(log_times, log_density));
+    gp.send1d(boost::make_tuple(interp_times, fluctuations));
     gp.flush();
 }
 

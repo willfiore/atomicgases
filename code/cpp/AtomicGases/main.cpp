@@ -113,7 +113,7 @@ int main()
     // Repeat num_repeats amount of times
     for (size_t r = 0; r < State::num_repeats; ++r) {
         // Print repeat number to console
-        std::cout << "Repeat number " << r << std::endl;
+        std::cout << "Repeat number " << r << "...";
 
         // Create a new vector to store the current state.
         // std::vector takes one template parameter (between <>) indicating
@@ -170,9 +170,14 @@ int main()
 
     // Plot
     Plot::init();
+
     //Plot::plotStateGraph();
+	//Plot::newPlotWindow();
     Plot::plotSpatialCorrelations();
-    //Plot::plotDensityGraph();
+	Plot::newPlotWindow();
+    Plot::plotDensityGraph();
+	Plot::newPlotWindow();
+	Plot::plotFluctuationGraph();
 
     // Pause so it doesn't exit immediately and we have time to see the graphs.
     system("pause");
