@@ -1,5 +1,7 @@
 #include "State.hpp"
 
+#include <sstream>
+
 namespace State
 {
     int num_atoms = 500;
@@ -11,4 +13,11 @@ namespace State
 
     std::vector<Times> repeated_times;
     std::vector<States> repeated_states;
+
+	std::string getInfoString()
+	{
+		std::stringstream ss;
+		ss << num_atoms << " atoms, R = " << R << ", " << num_repeats << " repeats.";
+		return ss.str();
+	}
 }

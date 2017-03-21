@@ -5,7 +5,6 @@
 #include <numeric>   // for std::accumulate (summing over containers)
 #include <fstream>   // file stream for saving to files
 #include <sstream>   // string stream for creating the file name
-#include <chrono>
 
 #include "Random.hpp"
 #include "State.hpp"
@@ -16,6 +15,7 @@
 void generate_rates(std::vector<bool>& state, std::vector<double>& rates)
 {
     const double pow_r_12 = pow(State::R, 12);
+
     // For each atom
     for (int k = 0; k < State::num_atoms; ++k) {
 
@@ -145,6 +145,10 @@ int main()
         // (as opposed to an integer)
         double current_time = 0;
 
+		// Insert first times and states
+		times.push_back(0);
+		states.push_back(current_state);
+
         while (current_time < State::duration) {
 
             current_time += get_jump_time(rates);
@@ -162,7 +166,6 @@ int main()
 
             // ... repeat
         }
-        State::duration = current_time;
         std::cout << "Simulated " << current_time << " seconds.";
         State::repeated_times.push_back(times);
         State::repeated_states.push_back(states);
@@ -171,13 +174,16 @@ int main()
     // Plot
     Plot::init();
 
-    //Plot::plotStateGraph();
-	//Plot::newPlotWindow();
-    Plot::plotSpatialCorrelations();
+    Plot::plotStateGraph();
 	Plot::newPlotWindow();
-    Plot::plotDensityGraph();
+	Plot::plotDensityGraph();
 	Plot::newPlotWindow();
 	Plot::plotFluctuationGraph();
+	Plot::newPlotWindow();
+	Plot::plotSpatialCorrelations();
+	Plot::newPlotWindow();
+    Plot::plotAllSpatialCorrelations();
+	Plot::newPlotWindow();
 
     // Pause so it doesn't exit immediately and we have time to see the graphs.
     system("pause");

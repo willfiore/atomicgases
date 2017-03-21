@@ -16,6 +16,7 @@ public:
 
     static void plotSpatialCorrelations(); // do last time
     static void plotSpatialCorrelations(double time);
+	static void plotAllSpatialCorrelations();
 private:
     static Gnuplot gp;
 };
