@@ -6,9 +6,14 @@
 #include <fstream>   // file stream for saving to files
 #include <sstream>   // string stream for creating the file name
 
+#include <thread> // Multithreading
+#include <mutex> // Locking vector while pushing
+
 #include "Random.hpp"
 #include "State.hpp"
 #include "Plot.hpp"
+
+std::mutex state_push_mutex;
 
 // void generate_rates(state, rates)
 // Given the current state vector of the system, update the corresponding rates
@@ -93,6 +98,80 @@ int get_jump_atom(std::vector<double>& rates)
     return atom;
 }
 
+// void generateData(core, repeats)
+// Generate data "repeats" amount of times.
+// 'Core' is a number from 0-3 indicating which CPU core
+// is doing the processing. Just so it can be printed.
+void generateData(int core, size_t repeats) {
+	// Repeat num_repeats amount of times
+	for (size_t r = 0; r < repeats; ++r) {
+
+		// Create a new vector to store the current state.
+		// std::vector takes one template parameter (between <>) indicating
+		// which type of value it stores.
+
+		// Here I have used the fill-constructor which has the following syntax:
+		// std::vector<type> name (number_of_elements, default_value)
+		std::vector<bool> current_state(State::num_atoms, false);
+
+		// bool can either be true or false.
+		// Here, true represents an atom in the Rydberg state,
+		// false represents the ground state.
+		// Converting bool to a numeric value (eg int, double) returns 0 or 1
+
+		// Create a new array to store the transition rates of each atom, again
+		// num_atoms in length
+		std::vector<double> rates(State::num_atoms, 0);
+
+		generate_rates(current_state, rates);
+
+		// Create an empty vector of doubles to store the jump times.
+		Times times;
+		// We want to store the entire state of the system at each jump time, so
+		// create another empty vector to store state arrays
+		States states;
+
+		// Start the time on 0
+		// 'double' is a double precision floating-point number, (i.e one with decimal places)
+		// (as opposed to an integer)
+		double current_time = 0;
+
+		// Insert first times and states
+		times.push_back(0);
+		states.push_back(current_state);
+
+		while (current_time < State::duration) {
+
+			current_time += get_jump_time(rates);
+			times.push_back(current_time);
+
+			int flipped_atom = get_jump_atom(rates);
+			// ! means not. Here we are setting the current state of the flipped atom
+			// to the opposite of what it was previously.
+			current_state[flipped_atom] = !current_state[flipped_atom];
+			// push the state to the current_state vector.
+			states.push_back(current_state);
+
+			// Regenerate the rates
+			generate_rates(current_state, rates);
+
+			// ... repeat
+		}
+
+		// We have multiple threads trying to access global vectors in the State:: namespace.
+		// This can cause problems if two threads try to access the same vector at the same time.
+		// The lock guard makes the thread running this function own the mutex defined at the top
+		// of the file. While the mutex is owned, no thread is able to proceed past this point
+		// in its execution. The lock guard is released at the end of the block, after the
+		// vectors have been pushed to.
+		std::lock_guard<std::mutex> guard(state_push_mutex);
+
+		std::cout << "C" << core << ": Simulated " << current_time << " seconds. (repeat " << State::current_repeat++ << ")" << std::endl;
+		State::repeated_times.push_back(times);
+		State::repeated_states.push_back(states);
+	}
+}
+
 // Main entry-point for a C++ program
 // This is where execution begins
 int main()
@@ -110,66 +189,24 @@ int main()
     std::cout << "Num repeats \t> ";
     std::cin >> State::num_repeats;
 
-    // Repeat num_repeats amount of times
-    for (size_t r = 0; r < State::num_repeats; ++r) {
-        // Print repeat number to console
-        std::cout << "Repeat number " << r << "...";
+	// Round threads to the next multiple of 4 (for nice division between threads)
+	State::num_repeats = ((3 + State::num_repeats) / 4) * 4;
 
-        // Create a new vector to store the current state.
-        // std::vector takes one template parameter (between <>) indicating
-        // which type of value it stores.
+	// Split execution across 4 threads. Assuming a 4 core machine, this should
+	// quadruple execution time.
+	std::thread t1(generateData, 0, State::num_repeats/4);
+	std::thread t2(generateData, 1, State::num_repeats/4);
+	std::thread t3(generateData, 2, State::num_repeats/4);
+	std::thread t4(generateData, 3, State::num_repeats/4);
 
-        // Here I have used the fill-constructor which has the following syntax:
-        // std::vector<type> name (number_of_elements, default_value)
-        std::vector<bool> current_state(State::num_atoms, false);
+	// Once all the data has generated, join the threads back together.
+	// std::thread::join() pauses execution until the thread has finished.
+	t1.join();
+	t2.join();
+	t3.join();
+	t4.join();
 
-        // bool can either be true or false.
-        // Here, true represents an atom in the Rydberg state,
-        // false represents the ground state.
-        // Converting bool to a numeric value (eg int, double) returns 0 or 1
-
-        // Create a new array to store the transition rates of each atom, again
-        // num_atoms in length
-        std::vector<double> rates(State::num_atoms, 0);
-
-        generate_rates(current_state, rates);
-
-        // Create an empty vector of doubles to store the jump times.
-        Times times;
-        // We want to store the entire state of the system at each jump time, so
-        // create another empty vector to store state arrays
-        States states;
-
-        // Start the time on 0
-        // 'double' is a double precision floating-point number, (i.e one with decimal places)
-        // (as opposed to an integer)
-        double current_time = 0;
-
-		// Insert first times and states
-		times.push_back(0);
-		states.push_back(current_state);
-
-        while (current_time < State::duration) {
-
-            current_time += get_jump_time(rates);
-            times.push_back(current_time);
-
-            int flipped_atom = get_jump_atom(rates);
-            // ! means not. Here we are setting the current state of the flipped atom
-            // to the opposite of what it was previously.
-            current_state[flipped_atom] = !current_state[flipped_atom];
-            // push the state to the current_state vector.
-            states.push_back(current_state);
-
-            // Regenerate the rates
-            generate_rates(current_state, rates);
-
-            // ... repeat
-        }
-        std::cout << "Simulated " << current_time << " seconds.";
-        State::repeated_times.push_back(times);
-        State::repeated_states.push_back(states);
-    }
+	// Here, all threads have finished generating data, so we are safe to plot.
 
     // Plot
     Plot::init();

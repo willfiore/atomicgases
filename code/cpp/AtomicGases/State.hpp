@@ -15,6 +15,8 @@ namespace State
     extern double real_duration;
     extern int num_repeats;
 
+	extern int current_repeat;
+
     extern std::vector<Times> repeated_times;
     extern std::vector<States> repeated_states;
 

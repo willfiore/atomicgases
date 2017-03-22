@@ -271,7 +271,6 @@ void Plot::plotAllSpatialCorrelations()
 	for (int i = 0; i < num_spaces; ++i) {
 		double time = (double(i) / double(num_spaces)) * State::duration;
 		interp_times.push_back(time);
-		std::cout << time << std::endl;
 	}
 
 	// Populating x
