@@ -11,7 +11,7 @@ namespace State
     int num_repeats = 1;
     int graph_type = 0;
 
-	int current_repeat = 1;
+	int current_repeat = 0;
 
     std::vector<Times> repeated_times;
     std::vector<States> repeated_states;

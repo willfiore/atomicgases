@@ -89,7 +89,7 @@ void Plot::plotDensityGraph()
 				// Get atom state at time 'time' (bisect.bisect_left equivalent)
 				auto t_index = std::distance(times.begin(), std::lower_bound(times.begin(), times.end(), time));
 
-				bool state;
+				StateType state;
 				if (t_index >= times.size()) {
 					state = states[states.size() - 1][a];
 				}
@@ -159,7 +159,7 @@ void Plot::plotFluctuationGraph()
                 // Get atom state at time 'time' (bisect.bisect_left equivalent)
                 auto t_index = std::distance(jump_times.begin(), std::lower_bound(jump_times.begin(), jump_times.end(), time));
 
-				bool state;
+				StateType state;
 				if (t_index >= jump_times.size()) {
 					state = jump_states[jump_states.size() - 1][a];
 				}
@@ -230,8 +230,8 @@ void Plot::plotSpatialCorrelations(double time)
 				// Find the staste at time 'time'
 				auto t_index = std::distance(times.begin(), std::lower_bound(times.begin(), times.end(), time)) - 1;
 
-				bool state_1 = State::repeated_states[r][t_index][s];
-				bool state_x = State::repeated_states[r][t_index][(s + i) % State::num_atoms];
+				StateType state_1 = State::repeated_states[r][t_index][s];
+				StateType state_x = State::repeated_states[r][t_index][(s + i) % State::num_atoms];
 
 				correlations.push_back(state_1 * state_x);
 				n_1.push_back(state_1);
@@ -299,8 +299,8 @@ void Plot::plotAllSpatialCorrelations()
 					// Find the state at time 'time'
 					auto t_index = std::distance(times.begin(), std::lower_bound(times.begin(), times.end(), time));
 
-					bool state_1 = State::repeated_states[r][t_index][s];
-					bool state_x = State::repeated_states[r][t_index][(s + i) % State::num_atoms];
+					StateType state_1 = State::repeated_states[r][t_index][s];
+					StateType state_x = State::repeated_states[r][t_index][(s + i) % State::num_atoms];
 
 					correlations.push_back(state_1 * state_x);
 					n_1.push_back(state_1);

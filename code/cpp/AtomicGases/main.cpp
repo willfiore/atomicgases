@@ -17,7 +17,7 @@ std::mutex state_push_mutex;
 
 // void generate_rates(state, rates)
 // Given the current state vector of the system, update the corresponding rates
-void generate_rates(std::vector<bool>& state, std::vector<double>& rates)
+void generate_rates(std::vector<StateType>& state, std::vector<double>& rates)
 {
     const double pow_r_12 = pow(State::R, 12);
 
@@ -112,7 +112,7 @@ void generateData(int core, size_t repeats) {
 
 		// Here I have used the fill-constructor which has the following syntax:
 		// std::vector<type> name (number_of_elements, default_value)
-		std::vector<bool> current_state(State::num_atoms, false);
+		std::vector<StateType> current_state(State::num_atoms, false);
 
 		// bool can either be true or false.
 		// Here, true represents an atom in the Rydberg state,
@@ -140,6 +140,10 @@ void generateData(int core, size_t repeats) {
 		times.push_back(0);
 		states.push_back(current_state);
 
+		time_t start_real_time, last_print_time, current_real_time;
+		time(&start_real_time);
+		time(&last_print_time);
+
 		while (current_time < State::duration) {
 
 			current_time += get_jump_time(rates);
@@ -156,8 +160,13 @@ void generateData(int core, size_t repeats) {
 			generate_rates(current_state, rates);
 
 			// ... repeat
-		}
 
+			time(&current_real_time);
+			if (!core && difftime(current_real_time, last_print_time) >= 1 ) {
+				std::cout << "C0 done " << 100 * (current_time / State::duration) << "% of 1 repeat." << std::endl;
+				time(&last_print_time);
+			}
+		}
 		// We have multiple threads trying to access global vectors in the State:: namespace.
 		// This can cause problems if two threads try to access the same vector at the same time.
 		// The lock guard makes the thread running this function own the mutex defined at the top
@@ -166,7 +175,10 @@ void generateData(int core, size_t repeats) {
 		// vectors have been pushed to.
 		std::lock_guard<std::mutex> guard(state_push_mutex);
 
-		std::cout << "C" << core << ": Simulated " << current_time << " seconds. (repeat " << State::current_repeat++ << ")" << std::endl;
+		State::current_repeat++;
+		int eta = difftime(current_real_time, start_real_time) * (State::num_repeats - State::current_repeat);
+
+		std::cout << "C" << core << " in " << difftime(current_real_time, start_real_time) << " seconds. ETA: " << eta << " seconds." << std::endl;
 		State::repeated_times.push_back(times);
 		State::repeated_states.push_back(states);
 	}

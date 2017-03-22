@@ -4,8 +4,9 @@
 #include <vector>
 #include <string>
 
+typedef char StateType;
 typedef std::vector<double> Times;
-typedef std::vector<std::vector<bool> > States;
+typedef std::vector<std::vector<StateType> > States;
 
 namespace State
 {
