@@ -6,6 +6,7 @@ namespace State
 {
     int num_atoms = 500;
     int R = 20;
+	double decay = 0;
     double duration = 0;
     double real_duration = 0;
     int num_repeats = 1;

@@ -42,6 +42,10 @@ void generate_rates(std::vector<StateType>& state, std::vector<double>& rates)
 
         // set the rate of this atom as given in the notes
         rates[k] = 1.f / (1.f + (pow_r_12)*pow(interaction_sum, 2));
+
+		if (state[k] >= 1) {
+			rates[k] += State::decay;
+		}
     }
 }
 
@@ -114,6 +118,11 @@ void generateData(int core, size_t repeats) {
 		// std::vector<type> name (number_of_elements, default_value)
 		std::vector<StateType> current_state(State::num_atoms, false);
 
+		/*for (size_t i = 0; i < current_state.size(); i += State::R) {
+			current_state[i] = Random::randomBool();
+			std::cout << bool(current_state[i]);
+		}*/
+
 		// bool can either be true or false.
 		// Here, true represents an atom in the Rydberg state,
 		// false represents the ground state.
@@ -144,6 +153,9 @@ void generateData(int core, size_t repeats) {
 		time(&start_real_time);
 		time(&last_print_time);
 
+		double total_flips = 0;
+		double excited_flips = 0;
+
 		while (current_time < State::duration) {
 
 			current_time += get_jump_time(rates);
@@ -153,6 +165,8 @@ void generateData(int core, size_t repeats) {
 			// ! means not. Here we are setting the current state of the flipped atom
 			// to the opposite of what it was previously.
 			current_state[flipped_atom] = !current_state[flipped_atom];
+			total_flips+= 1;
+			if (!current_state[flipped_atom]) excited_flips+= 1;
 			// push the state to the current_state vector.
 			states.push_back(current_state);
 
@@ -163,10 +177,12 @@ void generateData(int core, size_t repeats) {
 
 			time(&current_real_time);
 			if (!core && difftime(current_real_time, last_print_time) >= 1 ) {
-				std::cout << "C0 done " << 100 * (current_time / State::duration) << "% of 1 repeat." << std::endl;
+				//std::cout << "C0 done " << 100 * (current_time / State::duration) << "% of 1 repeat." << std::endl;
 				time(&last_print_time);
 			}
 		}
+
+		std::cout << excited_flips / total_flips << std::endl;
 		// We have multiple threads trying to access global vectors in the State:: namespace.
 		// This can cause problems if two threads try to access the same vector at the same time.
 		// The lock guard makes the thread running this function own the mutex defined at the top
@@ -178,7 +194,7 @@ void generateData(int core, size_t repeats) {
 		State::current_repeat++;
 		int eta = difftime(current_real_time, start_real_time) * (State::num_repeats - State::current_repeat);
 
-		std::cout << "C" << core << " in " << difftime(current_real_time, start_real_time) << " seconds. ETA: " << eta << " seconds." << std::endl;
+		std::cout << "C" << core << " in " << difftime(current_real_time, start_real_time) << ". " << State::num_repeats - State::current_repeat << " left." << std::endl;
 		State::repeated_times.push_back(times);
 		State::repeated_states.push_back(states);
 	}
@@ -194,6 +210,9 @@ int main()
 
     std::cout << "Interaction range, R \t> ";
     std::cin >> State::R;
+
+	std::cout << "Decay \t> ";
+	std::cin >> State::decay;
 
     std::cout << "Sim Duration (seconds) \t> ";
     std::cin >> State::duration;
@@ -223,8 +242,11 @@ int main()
     // Plot
     Plot::init();
 
-    Plot::plotStateGraph();
-	Plot::newPlotWindow();
+
+	//for (int r = 0; r < State::num_repeats; ++r) {
+		Plot::plotStateGraph(0);
+		Plot::newPlotWindow();
+	//}
 	Plot::plotDensityGraph();
 	Plot::newPlotWindow();
 	Plot::plotFluctuationGraph();

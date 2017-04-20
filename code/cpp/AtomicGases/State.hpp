@@ -12,6 +12,7 @@ namespace State
 {
     extern int num_atoms;
     extern int R;
+	extern double decay;
     extern double duration;
     extern double real_duration;
     extern int num_repeats;

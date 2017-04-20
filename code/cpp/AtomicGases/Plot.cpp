@@ -21,10 +21,10 @@ void Plot::newPlotWindow()
 	gp << "set term wxt " << ++x << "\n";
 }
 
-void Plot::plotStateGraph()
+void Plot::plotStateGraph(int r)
 {
-    Times& times = State::repeated_times[0];
-    States& states = State::repeated_states[0];
+    Times& times = State::repeated_times[r];
+    States& states = State::repeated_states[r];
 
     std::vector<double> x; // Time
     std::vector<int> y;   // Atom number
@@ -61,9 +61,19 @@ void Plot::plotDensityGraph()
 	std::vector<double> log_times;
 	std::vector<double> log_density;
 
+	double start_time = 10000000;
+	for (size_t r = 0; r < State::num_repeats; ++r) {
+		double time = State::repeated_times[r][1];
+		if (time < start_time) {
+			start_time = time;
+		}
+	}
+
+	std::cout << start_time << std::endl;
+
 	int num_spaces = 2000;
 	for (int i = 0; i < num_spaces; ++i) {
-		log_times.push_back(double(i) / double(num_spaces) * log(State::duration));
+		log_times.push_back(log(start_time) + double(i) / double(num_spaces) * (log(State::duration) - log(start_time)));
 	}
 
 	// For every time in log_times
@@ -120,7 +130,7 @@ void Plot::plotDensityGraph()
 
 	gp << "set title \"" << title.str() << "\"\n";
 	gp << "set xlabel \"time, t / s\"\n";
-	gp << "set ylabel \"Density\"\n";
+	gp << "set ylabel \"Density (log)\"\n";
 
 	gp << "plot '-' with lines\n";
 	gp.send1d(boost::make_tuple(log_times, log_density));
@@ -278,7 +288,8 @@ void Plot::plotAllSpatialCorrelations()
 		x_vals.push_back(i);
 	}
 
-	for (auto& time : interp_times) {
+	for (auto time : interp_times) {
+
 		std::vector<double> g;
 
 		// Need to calculate three expectation values:
@@ -319,7 +330,12 @@ void Plot::plotAllSpatialCorrelations()
 		g_vals.push_back(g);
 	}
 
-	std::vector<std::vector<double> > plot_x(x_vals.size(), interp_times);
+	std::vector<double> log_interp_times;
+	for (auto& time : interp_times) {
+		log_interp_times.push_back(log(time));
+	}
+
+	std::vector<std::vector<double> > plot_x(x_vals.size(), log_interp_times);
 	std::vector<std::vector<int> > plot_y(interp_times.size(), x_vals);
 
 	std::vector<std::vector<int> > plot_x_trans(interp_times.size(), std::vector<int>());

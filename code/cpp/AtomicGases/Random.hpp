@@ -8,6 +8,7 @@ class Random
 public:
     static void seed(unsigned int);
     static double randomDouble(double a, double b);
+	static bool randomBool();
 
 private:
     static std::mt19937 generator;

@@ -9,7 +9,7 @@ public:
 	static void init();
 	static void newPlotWindow();
 
-    static void plotStateGraph();
+    static void plotStateGraph(int repeat);
 
     static void plotDensityGraph();
 	static void plotFluctuationGraph();

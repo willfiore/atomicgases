@@ -19,3 +19,9 @@ double Random::randomDouble(double a, double b)
     // use the random generator to produce a number from the distribution, and return it
     return distribution(generator);
 }
+
+bool Random::randomBool()
+{
+	std::uniform_int_distribution<int> distribution(0, 1);
+	return distribution(generator);
+}
