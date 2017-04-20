@@ -118,10 +118,9 @@ void generateData(int core, size_t repeats) {
 		// std::vector<type> name (number_of_elements, default_value)
 		std::vector<StateType> current_state(State::num_atoms, false);
 
-		/*for (size_t i = 0; i < current_state.size(); i += State::R) {
-			current_state[i] = Random::randomBool();
-			std::cout << bool(current_state[i]);
-		}*/
+		for (size_t i = 0; i < current_state.size(); i += State::R) {
+            current_state[i] = true;
+		}
 
 		// bool can either be true or false.
 		// Here, true represents an atom in the Rydberg state,
@@ -182,7 +181,6 @@ void generateData(int core, size_t repeats) {
 			}
 		}
 
-		std::cout << excited_flips / total_flips << std::endl;
 		// We have multiple threads trying to access global vectors in the State:: namespace.
 		// This can cause problems if two threads try to access the same vector at the same time.
 		// The lock guard makes the thread running this function own the mutex defined at the top
@@ -211,50 +209,99 @@ int main()
     std::cout << "Interaction range, R \t> ";
     std::cin >> State::R;
 
-	std::cout << "Decay \t> ";
-	std::cin >> State::decay;
-
     std::cout << "Sim Duration (seconds) \t> ";
     std::cin >> State::duration;
 
     std::cout << "Num repeats \t> ";
     std::cin >> State::num_repeats;
 
-	// Round threads to the next multiple of 4 (for nice division between threads)
-	State::num_repeats = ((3 + State::num_repeats) / 4) * 4;
+    double minDecay, maxDecay, decayIncrement;
 
-	// Split execution across 4 threads. Assuming a 4 core machine, this should
-	// quadruple execution time.
-	std::thread t1(generateData, 0, State::num_repeats/4);
-	std::thread t2(generateData, 1, State::num_repeats/4);
-	std::thread t3(generateData, 2, State::num_repeats/4);
-	std::thread t4(generateData, 3, State::num_repeats/4);
+    std::cout << "Min decay \t> ";
+    std::cin >> minDecay;
 
-	// Once all the data has generated, join the threads back together.
-	// std::thread::join() pauses execution until the thread has finished.
-	t1.join();
-	t2.join();
-	t3.join();
-	t4.join();
+    std::cout << "Max decay \t> ";
+    std::cin >> maxDecay;
 
-	// Here, all threads have finished generating data, so we are safe to plot.
+    std::cout << "Decay increment\t> ";
+    std::cin >> decayIncrement;
 
-    // Plot
+    std::vector<double> decays;
+    std::vector<double> stationary_state_densities;
+    std::vector<double> stationary_state_fluctuations;
+
+    // Set up gnuplot interface
+    Gnuplot& gp = Plot::gp;
     Plot::init();
 
+    int plot_window = 0;
 
-	//for (int r = 0; r < State::num_repeats; ++r) {
-		Plot::plotStateGraph(0);
-		Plot::newPlotWindow();
-	//}
-	Plot::plotDensityGraph();
-	Plot::newPlotWindow();
-	Plot::plotFluctuationGraph();
-	Plot::newPlotWindow();
-	Plot::plotSpatialCorrelations();
-	Plot::newPlotWindow();
-    Plot::plotAllSpatialCorrelations();
-	Plot::newPlotWindow();
+    for (double x = minDecay; x <= maxDecay; x += decayIncrement) {
+
+        // Clear previous data
+        State::repeated_times.clear();
+        State::repeated_states.clear();
+
+        // Set correct decay
+        State::decay = x;
+        decays.push_back(State::decay);
+
+        // Round threads to the next multiple of 4 (for nice division between threads)
+        State::num_repeats = ((3 + State::num_repeats) / 4) * 4;
+
+        // Split execution across 4 threads. Assuming a 4 core machine, this should
+        // quadruple execution time.
+        std::thread t1(generateData, 0, State::num_repeats / 4);
+        std::thread t2(generateData, 1, State::num_repeats / 4);
+        std::thread t3(generateData, 2, State::num_repeats / 4);
+        std::thread t4(generateData, 3, State::num_repeats / 4);
+
+        // Once all the data has generated, join the threads back together.
+        // std::thread::join() pauses execution until the thread has finished.
+        t1.join();
+        t2.join();
+        t3.join();
+        t4.join();
+
+        double average_density = 0;
+        double average_sq_density = 0;
+
+        // For every repeat
+        for (size_t r = 0; r < State::num_repeats; ++r) {
+
+            int total_excited = 0;
+
+            for (size_t a = 0; a < State::num_atoms; ++a) {
+                total_excited += State::repeated_states[r].back()[a];
+            }
+
+            double density = double(total_excited) / double(State::num_atoms);
+            average_density += density;
+            average_sq_density += pow(density, 2);
+        }
+
+        average_density /= double(State::num_repeats);
+        average_sq_density /= double(State::num_repeats);
+
+        stationary_state_densities.push_back(average_density);
+
+        double fluctuation = (average_sq_density - pow(average_density, 2)) / average_density;
+        stationary_state_fluctuations.push_back(fluctuation);
+
+        Plot::plotSpatialCorrelations();
+    }
+
+    // Plot stationary state densities vs decay
+    gp << "plot '-' with lines\n";
+    gp.send1d(boost::make_tuple(decays, stationary_state_densities));
+    gp.flush();
+
+    gp << "set term wxt " << ++plot_window << "\n";
+
+    // Plot stationary state fluctuations vs decay
+    gp << "plot '-' with lines\n";
+    gp.send1d(boost::make_tuple(decays, stationary_state_fluctuations));
+    gp.flush();
 
     // Pause so it doesn't exit immediately and we have time to see the graphs.
     system("pause");

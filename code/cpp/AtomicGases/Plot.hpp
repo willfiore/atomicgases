@@ -6,6 +6,8 @@
 class Plot
 {
 public:
+    static Gnuplot gp;
+
 	static void init();
 	static void newPlotWindow();
 
@@ -17,8 +19,6 @@ public:
     static void plotSpatialCorrelations(); // do last time
     static void plotSpatialCorrelations(double time);
 	static void plotAllSpatialCorrelations();
-private:
-    static Gnuplot gp;
 };
 
 #endif
