@@ -10,6 +10,7 @@ import random
 import matplotlib.pyplot as plt
 import bisect
 import numpy as np
+import copy
 
 k = 1
 
@@ -28,6 +29,7 @@ def simulate_atom(duration):
         time.pop()
         state.pop()
     
+    plt.plot(plot_time, plot_state);
     return time, state
     
 def get_average(N, duration, num_bins):
@@ -50,4 +52,5 @@ def get_average(N, duration, num_bins):
     plt.plot(t, p, 'k')
     plt.plot(time_x, average_state, 'r')
 
-get_average(10000, 5, 1000)
+#get_average(10000, 5, 1000)
+simulate_atom(100);
